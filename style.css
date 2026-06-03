@@ -1,0 +1,380 @@
+/* style.css — Plymouth AUV Tide Tracker */
+
+:root {
+  --bg:            #080c18;
+  --panel:         #10152a;
+  --panel-border:  #1c2448;
+  --text:          #ccd8f8;
+  --text-dim:      #5060a0;
+  --go-green:      #00e87a;
+  --go-glow:       rgba(0,232,122,0.25);
+  --nogo-red:      #ff2d55;
+  --nogo-glow:     rgba(255,45,85,0.25);
+  --accent:        #3a8fff;
+  --amber:         #ffc800;
+  --radius:        14px;
+  --radius-sm:     8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Layout wrapper ─────────────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1700px;
+  margin: 0 auto;
+  padding: 0 24px 24px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 18px 0 14px;
+  border-bottom: 1px solid var(--panel-border);
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+.header-left h1 {
+  font-size: clamp(1.3rem, 2.5vw, 2rem);
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.site-name {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.header-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+#clockDisplay {
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+#dateDisplay {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+#lastUpdated {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+#stationInfo {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* ── Main grid ──────────────────────────────────────────────────────────────── */
+main {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 18px;
+  flex: 1;
+}
+
+/* ── Status indicator ───────────────────────────────────────────────────────── */
+.status-section {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.status-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: clamp(170px, 16vw, 240px);
+  height: clamp(170px, 16vw, 240px);
+  border-radius: var(--radius);
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+  flex-shrink: 0;
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.status-indicator.go {
+  border-color: var(--go-green);
+  box-shadow: 0 0 50px var(--go-glow), 0 0 100px var(--go-glow);
+}
+.status-indicator.nogo {
+  border-color: var(--nogo-red);
+  box-shadow: 0 0 50px var(--nogo-glow), 0 0 100px var(--nogo-glow);
+}
+
+.status-light {
+  width: clamp(70px, 7vw, 110px);
+  height: clamp(70px, 7vw, 110px);
+  border-radius: 50%;
+  background: var(--panel-border);
+  margin-bottom: 14px;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+.status-indicator.go .status-light {
+  background: var(--go-green);
+  box-shadow: 0 0 30px var(--go-green), 0 0 60px var(--go-glow);
+}
+.status-indicator.nogo .status-light {
+  background: var(--nogo-red);
+  box-shadow: 0 0 30px var(--nogo-red), 0 0 60px var(--nogo-glow);
+}
+
+#statusLabel {
+  font-size: clamp(1.4rem, 2.5vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  transition: color 0.4s;
+}
+.status-indicator.go    #statusLabel { color: var(--go-green); }
+.status-indicator.nogo  #statusLabel { color: var(--nogo-red);  }
+
+/* ── Stats grid ─────────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-content: start;
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  min-width: 110px;
+}
+.stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Windows panel ──────────────────────────────────────────────────────────── */
+.windows-section {
+  grid-column: 2;
+  grid-row: 1;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.section-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+#windowsList { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.window-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: #0d1228;
+  border: 1px solid var(--panel-border);
+  transition: border-color 0.3s, background 0.3s;
+}
+.window-row.current {
+  border-color: var(--go-green);
+  background: #0d2020;
+}
+.window-row.past { opacity: 0.45; }
+
+.window-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--go-green);
+}
+.window-row.past .window-dot { background: var(--text-dim); }
+
+.window-times {
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sep { margin: 0 6px; color: var(--text-dim); }
+
+.window-dur {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge-now {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--go-green);
+  color: #001a0a;
+  text-transform: uppercase;
+}
+
+.msg {
+  text-align: center;
+  padding: 30px 20px;
+  font-size: 0.9rem;
+}
+.msg.loading    { color: var(--text-dim); }
+.msg.no-windows { color: var(--nogo-red); }
+
+/* ── Chart ──────────────────────────────────────────────────────────────────── */
+.chart-section {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+.chart-section .section-title { margin-bottom: 10px; }
+
+#tideChart {
+  display: block;
+  width: 100%;
+  height: clamp(200px, 22vw, 300px);
+}
+
+/* ── Vehicle settings ───────────────────────────────────────────────────────── */
+.settings-section {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+details > summary {
+  padding: 14px 20px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  user-select: none;
+}
+details > summary::before {
+  content: '▶';
+  font-size: 0.65em;
+  transition: transform 0.2s;
+}
+details[open] > summary::before { transform: rotate(90deg); }
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  padding: 4px 20px 20px;
+}
+
+.setting-item label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.input-row input[type="number"] {
+  width: 72px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.unit-label { font-size: 0.85rem; color: var(--text-dim); }
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.calc-value {
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-weight: 700;
+  color: var(--amber);
+  padding: 8px 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  main { grid-template-columns: 1fr; }
+  .status-section  { grid-column: 1; }
+  .windows-section { grid-column: 1; grid-row: 2; }
+  .chart-section   { grid-row: 3; }
+  .settings-section { grid-row: 4; }
+  .settings-grid   { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  #app { padding: 0 12px 16px; }
+  header { flex-direction: column; align-items: flex-start; }
+  .status-section { flex-direction: column; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
+}
+
+/* ── TV-mode scaling (1920px+) ───────────────────────────────────────────────── */
+@media (min-width: 1920px) {
+  html { font-size: 20px; }
+  .status-indicator { width: 280px; height: 280px; }
+  #tideChart { height: 340px; }
+}
