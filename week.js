@@ -140,6 +140,18 @@ function isoDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 }
 
+// ── Hourly tick marks (called once, reused for every bar) ────────────────────
+function buildTicks() {
+  let html = '';
+  for (let h = 1; h < 24; h++) {
+    const pct   = (h / 24 * 100).toFixed(3);
+    const major = h % 3 === 0;
+    html += `<div class="tick${major ? ' tick-major' : ''}" style="left:${pct}%"></div>`;
+  }
+  return html;
+}
+const TICK_HTML = buildTicks();
+
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderWeek() {
   const today    = new Date();
@@ -155,24 +167,21 @@ function renderWeek() {
     const windows = points.length ? calcWindows(points) : [];
     const isToday = iso === todayISO;
 
-    const totalMins = windows.reduce((s, w) => s + toMins(w.end) - toMins(w.start), 0);
-
-    // Build go-window segments as % positions on the 0–1440 min scale
+    // Go-window segments as % positions across the 24-hour bar
     const segs = windows.map(w => {
-      const l = (toMins(w.start) / 1440 * 100).toFixed(2);
+      const l  = (toMins(w.start) / 1440 * 100).toFixed(2);
       const wd = ((toMins(w.end) - toMins(w.start)) / 1440 * 100).toFixed(2);
       return `<div class="go-seg" style="left:${l}%;width:${wd}%"></div>`;
     }).join('');
 
-    // Summary text
+    // Summary: list each window's exact time range
     let summary;
     if (!points.length) {
       summary = '<span class="sum-nodata">No data</span>';
     } else if (!windows.length) {
       summary = '<span class="sum-nogo">No windows</span>';
     } else {
-      summary = `<span class="sum-count">${windows.length} window${windows.length > 1 ? 's' : ''}</span>
-                 <span class="sum-time">${fmtDuration(totalMins)} open</span>`;
+      summary = windows.map(w => `<div class="win-range">${w.start} – ${w.end}</div>`).join('');
     }
 
     rows.push(`
@@ -184,9 +193,7 @@ function renderWeek() {
         <div class="timeline-wrap">
           <div class="timeline-bar">
             ${segs}
-            <div class="tick" style="left:25%"></div>
-            <div class="tick" style="left:50%"></div>
-            <div class="tick" style="left:75%"></div>
+            ${TICK_HTML}
             ${isToday ? `<div class="now-line" style="left:${nowPct}%"></div>` : ''}
           </div>
         </div>

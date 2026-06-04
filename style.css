@@ -434,7 +434,8 @@ input[type="range"] {
 }
 .week-axis-track span {
   position: absolute;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
   color: var(--text-dim);
   transform: translateX(-50%);
   white-space: nowrap;
@@ -509,15 +510,18 @@ input[type="range"] {
   background: rgba(0, 190, 96, 0.68);
 }
 
-/* Subtle tick lines at 6am / noon / 6pm */
+/* Hourly tick lines — minor every hour, major every 3 hours */
 .tick {
   position: absolute;
   top: 0;
   height: 100%;
   width: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
   z-index: 2;
   pointer-events: none;
+}
+.tick-major {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* Current time line (today only) */
@@ -538,19 +542,17 @@ input[type="range"] {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
-.sum-count {
-  display: block;
-  font-size: 0.9rem;
+/* Exact time range per window: "06:15 – 09:45" */
+.win-range {
+  font-size: 0.82rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
   color: var(--go-green);
+  line-height: 1.55;
+  white-space: nowrap;
 }
-.sum-time {
-  display: block;
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  margin-top: 2px;
-}
-.sum-nogo  { font-size: 0.85rem; color: var(--nogo-red); }
+.sum-nogo   { font-size: 0.85rem; color: var(--nogo-red); }
 .sum-nodata { font-size: 0.85rem; color: var(--text-dim); }
 
 @media (max-width: 700px) {
