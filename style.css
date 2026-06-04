@@ -378,3 +378,185 @@ input[type="range"] {
   .status-indicator { width: 280px; height: 280px; }
   #tideChart { height: 340px; }
 }
+
+/* ── Page tab navigation ─────────────────────────────────────────────────────── */
+.page-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 0;
+}
+.tab {
+  padding: 9px 24px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  text-decoration: none;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  position: relative;
+  bottom: -1px;
+  transition: color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+.tab.active {
+  color: var(--text);
+  background: var(--panel);
+  border-color: var(--panel-border);
+  border-bottom-color: var(--panel);
+}
+.tab:not(.active):hover { color: var(--text); }
+
+/* ── Weekly planning page ────────────────────────────────────────────────────── */
+.week-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+/* Time axis header row */
+.week-axis {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px 4px;
+}
+.week-axis-spacer { width: 88px; flex-shrink: 0; }
+.week-axis-end    { width: 160px; flex-shrink: 0; }
+.week-axis-track  {
+  flex: 1;
+  position: relative;
+  height: 18px;
+}
+.week-axis-track span {
+  position: absolute;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.week-axis-track span:first-child { transform: none; }
+.week-axis-track span:last-child  { transform: translateX(-100%); }
+
+/* Day rows container */
+.week-rows {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+/* Individual day row */
+.week-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--panel-border);
+  transition: background 0.2s;
+}
+.week-row:last-child { border-bottom: none; }
+.week-row:hover { background: #151c38; }
+.week-row.today { background: #0f1a30; }
+
+/* Day label (left column) */
+.day-label {
+  width: 88px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.day-name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.day-date {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.week-row.today .day-name { color: var(--accent); }
+.week-row.today .day-date { color: var(--accent); opacity: 0.65; }
+
+/* Timeline bar */
+.timeline-wrap { flex: 1; min-width: 0; }
+
+.timeline-bar {
+  position: relative;
+  height: 40px;
+  background: rgba(192, 40, 60, 0.38);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.week-row.today .timeline-bar {
+  height: 48px;
+  background: rgba(192, 40, 60, 0.45);
+  box-shadow: 0 0 0 1px var(--panel-border);
+}
+
+.go-seg {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(0, 190, 96, 0.68);
+}
+
+/* Subtle tick lines at 6am / noon / 6pm */
+.tick {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Current time line (today only) */
+.now-line {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Summary (right column) */
+.day-summary {
+  width: 160px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.sum-count {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--go-green);
+}
+.sum-time {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.sum-nogo  { font-size: 0.85rem; color: var(--nogo-red); }
+.sum-nodata { font-size: 0.85rem; color: var(--text-dim); }
+
+@media (max-width: 700px) {
+  .week-axis-end { display: none; }
+  .day-summary   { display: none; }
+  .week-axis-spacer { width: 60px; }
+  .day-label { width: 60px; }
+  .week-row  { gap: 10px; padding: 8px 12px; }
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plymouth AUV — Weekly Forecast</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="header-left">
+      <h1>Plymouth AUV Tide Tracker</h1>
+      <div class="site-name" id="siteName"></div>
+    </div>
+    <div class="header-right">
+      <div id="clockDisplay">--:--</div>
+      <div id="lastUpdated">Loading…</div>
+      <div id="stationInfo"></div>
+    </div>
+  </header>
+
+  <nav class="page-tabs">
+    <a href="index.html" class="tab">Daily Status</a>
+    <span class="tab active">Weekly Planning</span>
+  </nav>
+
+  <main class="week-main">
+
+    <!-- Time axis labels aligned over the bars -->
+    <div class="week-axis">
+      <div class="week-axis-spacer"></div>
+      <div class="week-axis-track">
+        <span style="left:0%">Midnight</span>
+        <span style="left:25%">6 AM</span>
+        <span style="left:50%">Noon</span>
+        <span style="left:75%">6 PM</span>
+        <span style="left:100%">Midnight</span>
+      </div>
+      <div class="week-axis-end"></div>
+    </div>
+
+    <!-- Day rows injected by JS -->
+    <div id="weekRows" class="week-rows">
+      <div class="msg loading">Fetching 7-day tide forecast from NOAA…</div>
+    </div>
+
+    <!-- Vehicle settings (shared with daily page via localStorage) -->
+    <section class="settings-section">
+      <details>
+        <summary>Vehicle &amp; Depth Settings</summary>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label for="draftNum">Vehicle Draft</label>
+            <div class="input-row">
+              <input type="number" id="draftNum" min="1" max="120" step="1" value="37">
+              <span class="unit-label">inches</span>
+            </div>
+            <input type="range" id="draftRange" min="1" max="120" step="1" value="37">
+          </div>
+          <div class="setting-item">
+            <label for="marginNum">Safety Margin</label>
+            <div class="input-row">
+              <input type="number" id="marginNum" min="0" max="24" step="1" value="4">
+              <span class="unit-label">inches</span>
+            </div>
+            <input type="range" id="marginRange" min="0" max="24" step="1" value="4">
+          </div>
+          <div class="setting-item">
+            <label>Minimum Required Depth</label>
+            <div class="calc-value" id="minDepthCalc">— ft</div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="week.js"></script>
+</body>
+</html>
