@@ -287,10 +287,13 @@ function updateWeatherPanel() {
   windEl.style.color = (windKnots !== null && windKnots >= wx.maxWindKnots)
     ? 'var(--nogo-red)' : '';
 
-  document.getElementById('wxWindDir').textContent = windDir;
+  document.getElementById('wxWindDir').textContent =
+    (windDir && windDir !== '—') ? `from ${windDir}` : '—';
 
   const gustEl = document.getElementById('wxGust');
-  gustEl.textContent = windGustKnots !== null ? `${Math.round(windGustKnots)} kts` : '—';
+  gustEl.textContent = windGustKnots !== null
+    ? `${Math.round(windGustKnots)} kts`
+    : (windKnots !== null ? 'None' : '—');
   gustEl.style.color = '';
 
   document.getElementById('wxCond').textContent = shortDesc;
