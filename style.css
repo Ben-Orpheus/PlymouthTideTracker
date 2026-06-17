@@ -90,7 +90,7 @@ header {
 main {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: repeat(4, auto);
   gap: 18px;
   flex: 1;
 }

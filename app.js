@@ -21,7 +21,6 @@ let wxState    = null;  // current weather (null = not yet loaded)
 
 const NOAA_TIDE_API = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
 const WX_API        = 'https://api.weather.gov';
-const WX_HEADERS    = { 'User-Agent': 'PlymouthAUVTideTracker/1.1' };
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -196,41 +195,58 @@ async function fetchTideData() {
 // ── NOAA Weather Fetch ────────────────────────────────────────────────────────
 async function fetchWeather() {
   const wx = CONFIG.weather;
+
+  document.getElementById('wxWind').textContent = '…';
+  document.getElementById('wxGust').textContent = '…';
+  document.getElementById('wxCond').textContent = '…';
+  document.getElementById('wxAlerts').innerHTML  = '';
+
   try {
-    // Step 1: Resolve grid point for our coordinates (cache for the session)
+    // Resolve NWS gridpoint for our coordinates.
+    // Cached in localStorage for 7 days — avoids a round-trip on every load.
+    // No custom headers: adding User-Agent triggers a CORS preflight that NWS rejects.
     const cacheKey = `wxgrid_${wx.lat}_${wx.lon}`;
-    let grid = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+    let grid = null;
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached && cached.ts && (Date.now() - cached.ts) < 7 * 24 * 60 * 60 * 1000) {
+        grid = cached;
+      }
+    } catch (_) {}
+
     if (!grid) {
-      const r = await fetch(`${WX_API}/points/${wx.lat},${wx.lon}`, { headers: WX_HEADERS });
-      if (!r.ok) throw new Error(`Weather grid lookup failed (${r.status})`);
+      const r = await fetch(`${WX_API}/points/${wx.lat},${wx.lon}`);
+      if (!r.ok) throw new Error(`Grid lookup failed (${r.status})`);
       const j = await r.json();
       grid = {
         forecastHourly: j.properties.forecastHourly,
-        zone: j.properties.forecastZone.split('/').pop()
+        zone:           j.properties.forecastZone.split('/').pop(),
+        ts:             Date.now()
       };
-      sessionStorage.setItem(cacheKey, JSON.stringify(grid));
+      try { localStorage.setItem(cacheKey, JSON.stringify(grid)); } catch (_) {}
     }
 
-    // Step 2: Fetch active alerts (land zone + marine zone) and hourly forecast in parallel
-    const [alertRes, hourlyRes] = await Promise.all([
-      fetch(`${WX_API}/alerts/active?zone=${grid.zone},${wx.marineZone}`, { headers: WX_HEADERS }),
-      fetch(grid.forecastHourly, { headers: WX_HEADERS })
+    // Fetch alerts and hourly forecast independently — one failure won't block the other
+    const [alertResult, hourlyResult] = await Promise.allSettled([
+      fetch(`${WX_API}/alerts/active?zone=${grid.zone},${wx.marineZone}`).then(r => r.json()),
+      fetch(grid.forecastHourly).then(r => r.json())
     ]);
-    const [alertJson, hourlyJson] = await Promise.all([alertRes.json(), hourlyRes.json()]);
 
-    // Parse marine/safety alerts that block operations
-    const alerts = (alertJson.features || [])
-      .map(f => f.properties)
-      .filter(p => wx.noGoAlerts.includes(p.event));
+    const alerts = alertResult.status === 'fulfilled'
+      ? (alertResult.value.features || [])
+          .map(f => f.properties)
+          .filter(p => wx.noGoAlerts.includes(p.event))
+      : [];
 
-    // Parse wind from the current hourly period
-    const period      = (hourlyJson.properties?.periods || [])[0] || {};
-    const windKnots   = parseMphToKnots(period.windSpeed);
-    const gustKnots   = parseMphToKnots(period.windGust);
-    const windDir     = period.windDirection || '—';
-    const shortDesc   = period.shortForecast  || '—';
+    let windKnots = null, gustKnots = null, windDir = '—', shortDesc = '—';
+    if (hourlyResult.status === 'fulfilled') {
+      const period = (hourlyResult.value.properties?.periods || [])[0] || {};
+      windKnots = parseMphToKnots(period.windSpeed);
+      gustKnots = parseMphToKnots(period.windGust);
+      windDir   = period.windDirection || '—';
+      shortDesc = period.shortForecast  || '—';
+    }
 
-    // Build No-Go reasons
     const noGoReasons = [];
     if (windKnots !== null && windKnots >= wx.maxWindKnots) {
       noGoReasons.push(`Wind ${Math.round(windKnots)} kts (limit ${wx.maxWindKnots} kts)`);
@@ -244,8 +260,11 @@ async function fetchWeather() {
   } catch (err) {
     console.error('Weather fetch error:', err);
     wxState = null;
+    document.getElementById('wxWind').textContent = '—';
+    document.getElementById('wxGust').textContent = '—';
+    document.getElementById('wxCond').textContent = '—';
     document.getElementById('wxAlerts').innerHTML =
-      '<span class="wx-error">⚠ Weather data unavailable</span>';
+      `<span class="wx-error">⚠ ${err.message}</span>`;
   }
 }
 
