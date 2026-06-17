@@ -43,5 +43,39 @@ const CONFIG = {
   units: "feet",
 
   // How often to refresh tide data from NOAA (milliseconds)
-  refreshIntervalMs: 5 * 60 * 1000   // 5 minutes
+  refreshIntervalMs: 5 * 60 * 1000,   // 5 minutes
+
+  // ── Weather conditions ───────────────────────────────────────────────────────
+  // Pulls from NOAA Weather.gov API (free, no key required).
+  weather: {
+    // Coordinates for Plymouth Harbor / Cordage Park
+    lat: 41.9584,
+    lon: -70.6673,
+
+    // NOAA marine forecast zone covering Cape Cod Bay (Plymouth's body of water)
+    // Full zone list: https://www.weather.gov/mtr/MarineZones
+    marineZone: 'ANZ232',
+
+    // Sustained wind threshold in knots — at or above this = No-Go
+    maxWindKnots: 20,
+
+    // How often to refresh weather data
+    refreshIntervalMs: 30 * 60 * 1000,  // 30 minutes
+
+    // Marine alert event names that trigger a No-Go condition.
+    // Add or remove entries here to tune which alerts block operations.
+    noGoAlerts: [
+      'Small Craft Advisory',
+      'Special Marine Warning',
+      'Gale Warning',
+      'Gale Watch',
+      'Storm Warning',
+      'Storm Watch',
+      'Hurricane Warning',
+      'Hurricane Watch',
+      'Tropical Storm Warning',
+      'Tropical Storm Watch',
+      'Dense Fog Advisory'
+    ]
+  }
 };

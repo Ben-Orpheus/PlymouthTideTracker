@@ -4,11 +4,24 @@
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let tidePoints = [];    // [{t:"YYYY-MM-DD HH:MM", v:"X.XX"}, ...] from NOAA
-let site = null;        // active site from CONFIG
-let draft = 37;         // vehicle draft, inches
-let margin = 4;         // safety margin, inches
+let site       = null;  // active site from CONFIG
+let draft      = 37;    // vehicle draft, inches
+let margin     = 4;     // safety margin, inches
+let wxState    = null;  // current weather (null = not yet loaded)
+/*
+  wxState = {
+    windKnots:     number | null,
+    windGustKnots: number | null,
+    windDir:       string,
+    shortDesc:     string,
+    alerts:        [{event, headline}],
+    noGoReasons:   string[],   // non-empty = weather is blocking
+  }
+*/
 
-const NOAA_API = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
+const NOAA_TIDE_API = 'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter';
+const WX_API        = 'https://api.weather.gov';
+const WX_HEADERS    = { 'User-Agent': 'PlymouthAUVTideTracker/1.1' };
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,7 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
   bindVehicleControls();
   startClock();
   fetchTideData();
+  fetchWeather();
   setInterval(fetchTideData, CONFIG.refreshIntervalMs);
+  setInterval(fetchWeather,  CONFIG.weather.refreshIntervalMs);
   window.addEventListener('resize', () => { if (tidePoints.length) drawChart(); });
 });
 
@@ -66,9 +81,10 @@ function updateMinDepthDisplay() {
   const inches = totalIn % 12;
   document.getElementById('minDepthCalc').textContent =
     `${ft} ft ${inches} in  (${(totalIn / 12).toFixed(2)} ft)`;
+  document.getElementById('requiredDepth').textContent = `${(totalIn / 12).toFixed(1)} ft`;
 }
 
-// ── Calculations ──────────────────────────────────────────────────────────────
+// ── Tide calculations ─────────────────────────────────────────────────────────
 function minDepthFt()    { return (draft + margin) / 12; }
 function minNoaaHeight() { return minDepthFt() - site.siteOffset; }
 function toSiteDepth(h)  { return h + site.siteOffset; }
@@ -108,7 +124,9 @@ function calcWindows() {
 function nextEvent(windows) {
   const hhmm = nowHHMM();
   const h = currentNoaaHeight();
-  const isGo = h !== null && h >= minNoaaHeight();
+  const tideOk = h !== null && h >= minNoaaHeight();
+  const wxOk   = !wxState || wxState.noGoReasons.length === 0;
+  const isGo   = tideOk && wxOk;
   if (isGo) {
     for (const w of windows) {
       if (w.start <= hhmm && w.end > hhmm) return { type: 'close', time: w.end };
@@ -132,8 +150,7 @@ function fmtDuration(startHHMM, endHHMM) {
 function fmtDepth(ft) {
   if (ft === null) return '—';
   const sign = ft < 0 ? '−' : '';
-  const abs = Math.abs(ft);
-  return `${sign}${abs.toFixed(1)} ft`;
+  return `${sign}${Math.abs(ft).toFixed(1)} ft`;
 }
 
 // ── Clock ─────────────────────────────────────────────────────────────────────
@@ -142,7 +159,8 @@ function startClock() {
     const now = new Date();
     document.getElementById('clockDisplay').textContent =
       now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:false });
-    const today = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    const today = now.toLocaleDateString('en-US',
+      { weekday:'long', month:'long', day:'numeric', year:'numeric' });
     document.getElementById('dateDisplay').textContent = today;
     if (tidePoints.length) refreshDisplay();
   }
@@ -150,16 +168,16 @@ function startClock() {
   setInterval(tick, 15000);
 }
 
-// ── NOAA Fetch ────────────────────────────────────────────────────────────────
+// ── NOAA Tide Fetch ───────────────────────────────────────────────────────────
 async function fetchTideData() {
   const now = new Date();
   const d = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-  const url = `${NOAA_API}?begin_date=${d}&end_date=${d}` +
+  const url = `${NOAA_TIDE_API}?begin_date=${d}&end_date=${d}` +
     `&station=${site.noaaStation}&product=predictions&datum=MLLW` +
     `&time_zone=lst_ldt&interval=6&units=english` +
     `&application=PlymouthAUVTideTracker&format=json`;
   try {
-    const res = await fetch(url);
+    const res  = await fetch(url);
     const json = await res.json();
     if (json.error) throw new Error(json.error.message || 'NOAA API error');
     tidePoints = json.predictions || [];
@@ -169,28 +187,130 @@ async function fetchTideData() {
     refreshDisplay();
     drawChart();
   } catch (err) {
-    document.getElementById('lastUpdated').textContent = `⚠ Data fetch failed — ${err.message}`;
+    document.getElementById('lastUpdated').textContent = `⚠ Tide fetch failed — ${err.message}`;
     document.getElementById('lastUpdated').style.color = '#ff2d55';
-    console.error('NOAA fetch error:', err);
+    console.error('Tide fetch error:', err);
+  }
+}
+
+// ── NOAA Weather Fetch ────────────────────────────────────────────────────────
+async function fetchWeather() {
+  const wx = CONFIG.weather;
+  try {
+    // Step 1: Resolve grid point for our coordinates (cache for the session)
+    const cacheKey = `wxgrid_${wx.lat}_${wx.lon}`;
+    let grid = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+    if (!grid) {
+      const r = await fetch(`${WX_API}/points/${wx.lat},${wx.lon}`, { headers: WX_HEADERS });
+      if (!r.ok) throw new Error(`Weather grid lookup failed (${r.status})`);
+      const j = await r.json();
+      grid = {
+        forecastHourly: j.properties.forecastHourly,
+        zone: j.properties.forecastZone.split('/').pop()
+      };
+      sessionStorage.setItem(cacheKey, JSON.stringify(grid));
+    }
+
+    // Step 2: Fetch active alerts (land zone + marine zone) and hourly forecast in parallel
+    const [alertRes, hourlyRes] = await Promise.all([
+      fetch(`${WX_API}/alerts/active?zone=${grid.zone},${wx.marineZone}`, { headers: WX_HEADERS }),
+      fetch(grid.forecastHourly, { headers: WX_HEADERS })
+    ]);
+    const [alertJson, hourlyJson] = await Promise.all([alertRes.json(), hourlyRes.json()]);
+
+    // Parse marine/safety alerts that block operations
+    const alerts = (alertJson.features || [])
+      .map(f => f.properties)
+      .filter(p => wx.noGoAlerts.includes(p.event));
+
+    // Parse wind from the current hourly period
+    const period      = (hourlyJson.properties?.periods || [])[0] || {};
+    const windKnots   = parseMphToKnots(period.windSpeed);
+    const gustKnots   = parseMphToKnots(period.windGust);
+    const windDir     = period.windDirection || '—';
+    const shortDesc   = period.shortForecast  || '—';
+
+    // Build No-Go reasons
+    const noGoReasons = [];
+    if (windKnots !== null && windKnots >= wx.maxWindKnots) {
+      noGoReasons.push(`Wind ${Math.round(windKnots)} kts (limit ${wx.maxWindKnots} kts)`);
+    }
+    alerts.forEach(a => noGoReasons.push(a.event));
+
+    wxState = { windKnots, windGustKnots: gustKnots, windDir, shortDesc, alerts, noGoReasons };
+    updateWeatherPanel();
+    refreshDisplay();
+
+  } catch (err) {
+    console.error('Weather fetch error:', err);
+    wxState = null;
+    document.getElementById('wxAlerts').innerHTML =
+      '<span class="wx-error">⚠ Weather data unavailable</span>';
+  }
+}
+
+function parseMphToKnots(str) {
+  if (!str) return null;
+  const nums = (str.match(/\d+/g) || []).map(Number);
+  if (!nums.length) return null;
+  return Math.max(...nums) * 0.868976;  // take highest value in ranges like "15 to 20 mph"
+}
+
+function updateWeatherPanel() {
+  if (!wxState) return;
+  const { windKnots, windGustKnots, windDir, shortDesc, alerts, noGoReasons } = wxState;
+  const wx = CONFIG.weather;
+
+  // Wind display — color red if at/over limit
+  const windEl = document.getElementById('wxWind');
+  const windStr = windKnots !== null ? `${Math.round(windKnots)} kts` : '—';
+  windEl.textContent = windStr;
+  windEl.style.color = (windKnots !== null && windKnots >= wx.maxWindKnots)
+    ? 'var(--nogo-red)' : '';
+
+  document.getElementById('wxWindDir').textContent = windDir;
+
+  const gustEl = document.getElementById('wxGust');
+  gustEl.textContent = windGustKnots !== null ? `${Math.round(windGustKnots)} kts` : '—';
+  gustEl.style.color = '';
+
+  document.getElementById('wxCond').textContent = shortDesc;
+
+  // Alert badges
+  const alertsEl = document.getElementById('wxAlerts');
+  if (alerts.length === 0) {
+    alertsEl.innerHTML = '<span class="wx-clear">No Marine Advisories</span>';
+  } else {
+    alertsEl.innerHTML = alerts.map(a =>
+      `<span class="wx-alert-badge">${a.event}</span>`
+    ).join('');
   }
 }
 
 // ── Display refresh ───────────────────────────────────────────────────────────
 function refreshDisplay() {
-  const h = currentNoaaHeight();
+  const h     = currentNoaaHeight();
   const depth = h !== null ? toSiteDepth(h) : null;
   const minD  = minDepthFt();
-  const isGo  = depth !== null && depth >= minD;
 
-  // Status indicator
-  const indicator = document.getElementById('statusIndicator');
-  const label     = document.getElementById('statusLabel');
-  indicator.className = `status-indicator ${isGo ? 'go' : 'nogo'}`;
-  label.textContent   = isGo ? 'GO' : 'NO GO';
+  const tideOk = depth !== null && depth >= minD;
+  const wxOk   = !wxState || wxState.noGoReasons.length === 0;
+  const isGo   = tideOk && wxOk;
 
-  // Stats
+  // ── Status indicator ───────────────────────────────────────────────────────
+  document.getElementById('statusIndicator').className =
+    `status-indicator ${isGo ? 'go' : 'nogo'}`;
+  document.getElementById('statusLabel').textContent = isGo ? 'GO' : 'NO GO';
+
+  // Reason line — only shown when No-Go
+  const reasons = [];
+  if (!tideOk && depth !== null) reasons.push(`Depth ${fmtDepth(depth)} — below ${fmtDepth(minD)} min`);
+  if (!tideOk && depth === null) reasons.push('Tide data loading…');
+  if (!wxOk) reasons.push(...wxState.noGoReasons);
+  document.getElementById('statusReason').textContent = reasons.join('  ·  ');
+
+  // ── Stats cards ────────────────────────────────────────────────────────────
   document.getElementById('currentDepth').textContent = fmtDepth(depth);
-  document.getElementById('requiredDepth').textContent = fmtDepth(minD);
 
   const clearEl = document.getElementById('clearance');
   if (depth !== null) {
@@ -202,7 +322,7 @@ function refreshDisplay() {
     clearEl.style.color = '';
   }
 
-  // Next event
+  // ── Next event ─────────────────────────────────────────────────────────────
   const windows = calcWindows();
   const evt = nextEvent(windows);
   if (evt) {
@@ -213,10 +333,7 @@ function refreshDisplay() {
     document.getElementById('nextEvent').textContent = '—';
   }
 
-  // Windows list
   renderWindows(windows);
-
-  // Redraw chart threshold
   drawChart();
 }
 
@@ -233,7 +350,7 @@ function renderWindows(windows) {
     return;
   }
 
-  list.innerHTML = windows.map((w, i) => {
+  list.innerHTML = windows.map(w => {
     const isCurrent = w.start <= hhmm && w.end > hhmm;
     const isPast    = w.end <= hhmm;
     const duration  = fmtDuration(w.start, w.end);
@@ -261,24 +378,18 @@ function drawChart() {
   ctx.scale(dpr, dpr);
 
   const PAD = { top: 16, right: 20, bottom: 42, left: 54 };
-  const pw  = W - PAD.left - PAD.right;   // plot width
-  const ph  = H - PAD.top  - PAD.bottom;  // plot height
+  const pw  = W - PAD.left - PAD.right;
+  const ph  = H - PAD.top  - PAD.bottom;
 
-  // Y scale: site depth (ft), always include 0
   const depths = tidePoints.map(p => toSiteDepth(parseFloat(p.v)));
   const maxD = Math.ceil(Math.max(...depths) + 0.5);
   const minD_chart = Math.min(0, Math.floor(Math.min(...depths) - 0.25));
   const rangeD = maxD - minD_chart;
 
   const threshDepth = minDepthFt();
-  const minH = minNoaaHeight();
 
-  function cx(idx) {
-    return PAD.left + (idx / (tidePoints.length - 1)) * pw;
-  }
-  function cy(d) {
-    return PAD.top + (1 - (d - minD_chart) / rangeD) * ph;
-  }
+  function cx(idx) { return PAD.left + (idx / (tidePoints.length - 1)) * pw; }
+  function cy(d)   { return PAD.top  + (1 - (d - minD_chart) / rangeD) * ph; }
 
   const pts = tidePoints.map((p, i) => ({
     x: cx(i),
@@ -289,43 +400,35 @@ function drawChart() {
   const threshY = cy(threshDepth);
   const zeroY   = cy(0);
 
-  // ── Background ──────────────────────────────────────────────────────────────
   ctx.fillStyle = '#0d1120';
   ctx.fillRect(0, 0, W, H);
 
-  // ── Plot background grid ─────────────────────────────────────────────────
+  // Grid
   ctx.strokeStyle = '#1a2040';
   ctx.lineWidth = 1;
-  // Horizontal grid every 2 ft
   for (let d = Math.ceil(minD_chart); d <= maxD; d += 2) {
     const y = cy(d);
     ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + pw, y); ctx.stroke();
   }
-  // Vertical grid every 4 hours
   for (let h = 0; h <= 24; h += 4) {
-    const idx = Math.round((h / 24) * (tidePoints.length - 1));
-    const x = cx(idx);
+    const x = cx(Math.round((h / 24) * (tidePoints.length - 1)));
     ctx.beginPath(); ctx.moveTo(x, PAD.top); ctx.lineTo(x, PAD.top + ph); ctx.stroke();
   }
-
-  // Zero line
   if (minD_chart < 0) {
-    ctx.strokeStyle = '#2a3560';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#2a3560'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(PAD.left, zeroY); ctx.lineTo(PAD.left + pw, zeroY); ctx.stroke();
   }
 
-  // ── Tide fill ────────────────────────────────────────────────────────────
-  // Red fill: full area
+  // Red fill
   ctx.beginPath();
   ctx.moveTo(pts[0].x, zeroY);
-  pts.forEach(p => ctx.lineTo(p.x, Math.min(p.y, zeroY)));  // clamp to zero
-  ctx.lineTo(pts[pts.length - 1].x, zeroY);
+  pts.forEach(p => ctx.lineTo(p.x, Math.min(p.y, zeroY)));
+  ctx.lineTo(pts[pts.length-1].x, zeroY);
   ctx.closePath();
   ctx.fillStyle = 'rgba(192, 40, 60, 0.65)';
   ctx.fill();
 
-  // Green fill: above threshold (clip to threshold area)
+  // Green fill (above threshold)
   if (threshY > PAD.top) {
     ctx.save();
     ctx.beginPath();
@@ -334,18 +437,17 @@ function drawChart() {
     ctx.beginPath();
     ctx.moveTo(pts[0].x, zeroY);
     pts.forEach(p => ctx.lineTo(p.x, Math.min(p.y, zeroY)));
-    ctx.lineTo(pts[pts.length - 1].x, zeroY);
+    ctx.lineTo(pts[pts.length-1].x, zeroY);
     ctx.closePath();
     ctx.fillStyle = 'rgba(0, 190, 100, 0.65)';
     ctx.fill();
     ctx.restore();
   }
 
-  // ── Tide curve line ──────────────────────────────────────────────────────
+  // Tide curve
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) {
-    // Smooth with bezier
     const prev = pts[i-1], curr = pts[i];
     const cpx = (prev.x + curr.x) / 2;
     ctx.bezierCurveTo(cpx, prev.y, cpx, curr.y, curr.x, curr.y);
@@ -354,30 +456,22 @@ function drawChart() {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // ── Minimum depth threshold line ─────────────────────────────────────────
+  // Threshold line
   ctx.setLineDash([10, 5]);
-  ctx.strokeStyle = '#ffc800';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#ffc800'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PAD.left, threshY); ctx.lineTo(PAD.left + pw, threshY); ctx.stroke();
   ctx.setLineDash([]);
-
-  // Threshold label
-  ctx.fillStyle = '#ffc800';
-  ctx.font = 'bold 11px system-ui';
-  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffc800'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
   ctx.fillText(`Min ${threshDepth.toFixed(1)} ft`, PAD.left + 4, threshY - 5);
 
-  // ── Current time marker ──────────────────────────────────────────────────
+  // Current time marker
   const now     = new Date();
-  const fracDay = (now.getHours() * 60 + now.getMinutes()) / (24 * 60);
-  const nowIdx  = fracDay * (tidePoints.length - 1);
+  const fracDay = (now.getHours() * 60 + now.getMinutes()) / 1440;
   const nowX    = PAD.left + fracDay * pw;
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(nowX, PAD.top); ctx.lineTo(nowX, PAD.top + ph); ctx.stroke();
 
-  // Dot at current depth
+  const nowIdx = fracDay * (tidePoints.length - 1);
   if (nowIdx >= 0 && nowIdx < pts.length) {
     const lo = Math.floor(nowIdx), hi = Math.min(lo + 1, pts.length - 1);
     const t  = nowIdx - lo;
@@ -387,46 +481,29 @@ function drawChart() {
     ctx.arc(nowX, curY, 6, 0, Math.PI * 2);
     ctx.fillStyle = curD >= threshDepth ? '#00e87a' : '#ff2d55';
     ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
   }
 
-  // ── Axes ─────────────────────────────────────────────────────────────────
-  ctx.strokeStyle = '#253060';
-  ctx.lineWidth = 1;
+  // Axes
+  ctx.strokeStyle = '#253060'; ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(PAD.left, PAD.top); ctx.lineTo(PAD.left, PAD.top + ph);
-  ctx.lineTo(PAD.left + pw, PAD.top + ph);
-  ctx.stroke();
+  ctx.lineTo(PAD.left + pw, PAD.top + ph); ctx.stroke();
 
-  // Y axis labels (site depth)
-  ctx.fillStyle = '#8090c0';
-  ctx.font = '11px system-ui';
-  ctx.textAlign = 'right';
-  for (let d = Math.ceil(minD_chart); d <= maxD; d += 2) {
+  ctx.fillStyle = '#8090c0'; ctx.font = '11px system-ui'; ctx.textAlign = 'right';
+  for (let d = Math.ceil(minD_chart); d <= maxD; d += 2)
     ctx.fillText(`${d}`, PAD.left - 6, cy(d) + 4);
-  }
-  // Y axis title
+
   ctx.save();
-  ctx.fillStyle = '#6070a0';
-  ctx.font = '11px system-ui';
-  ctx.textAlign = 'center';
-  ctx.translate(13, H / 2);
-  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#6070a0'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  ctx.translate(13, H / 2); ctx.rotate(-Math.PI / 2);
   ctx.fillText('Depth (ft)', 0, 0);
   ctx.restore();
 
-  // X axis labels (hours)
-  ctx.fillStyle = '#8090c0';
-  ctx.font = '11px system-ui';
-  ctx.textAlign = 'center';
-  const hourLabels = {
-    0: 'Midnight', 4: '4am', 8: '8am', 12: 'Noon', 16: '4pm', 20: '8pm', 24: ''
-  };
+  ctx.fillStyle = '#8090c0'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  const hourLabels = { 0:'Midnight', 4:'4am', 8:'8am', 12:'Noon', 16:'4pm', 20:'8pm' };
   for (const [h, label] of Object.entries(hourLabels)) {
-    if (!label) continue;
-    const idx = Math.round((h / 24) * (tidePoints.length - 1));
-    ctx.fillText(label, cx(idx), H - 10);
+    const x = cx(Math.round((h / 24) * (tidePoints.length - 1)));
+    ctx.fillText(label, x, H - 10);
   }
 }

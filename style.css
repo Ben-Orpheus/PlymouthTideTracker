@@ -153,6 +153,20 @@ main {
 .status-indicator.go    #statusLabel { color: var(--go-green); }
 .status-indicator.nogo  #statusLabel { color: var(--nogo-red);  }
 
+/* Reason text shown below NO GO label */
+.status-reason {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--nogo-red);
+  padding: 4px 10px 0;
+  line-height: 1.4;
+  min-height: 0;
+  max-width: 190px;
+}
+.status-indicator.go .status-reason { display: none; }
+
 /* ── Stats grid ─────────────────────────────────────────────────────────────── */
 .stats-grid {
   display: grid;
@@ -258,10 +272,97 @@ main {
 .msg.loading    { color: var(--text-dim); }
 .msg.no-windows { color: var(--nogo-red); }
 
+/* ── Weather panel ───────────────────────────────────────────────────────────── */
+.weather-section {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+}
+
+.wx-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+
+.wx-item {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 20px;
+  min-width: 90px;
+}
+.wx-item-wide { min-width: 160px; flex: 1; }
+
+.wx-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--panel-border);
+  flex-shrink: 0;
+}
+
+.wx-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+
+.wx-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
+}
+
+.wx-sub {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* Alert badges */
+.wx-alerts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-left: 20px;
+  flex: 1;
+}
+
+.wx-alert-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: var(--nogo-red);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 0 12px var(--nogo-glow);
+}
+
+.wx-clear {
+  font-size: 0.8rem;
+  color: var(--go-green);
+}
+
+.wx-error {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
 /* ── Chart ──────────────────────────────────────────────────────────────────── */
 .chart-section {
   grid-column: 1 / -1;
-  grid-row: 2;
+  grid-row: 3;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
@@ -278,7 +379,7 @@ main {
 /* ── Vehicle settings ───────────────────────────────────────────────────────── */
 .settings-section {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 4;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
@@ -358,10 +459,11 @@ input[type="range"] {
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 960px) {
   main { grid-template-columns: 1fr; }
-  .status-section  { grid-column: 1; }
+  .status-section  { grid-column: 1; grid-row: 1; }
   .windows-section { grid-column: 1; grid-row: 2; }
-  .chart-section   { grid-row: 3; }
-  .settings-section { grid-row: 4; }
+  .weather-section { grid-row: 3; }
+  .chart-section   { grid-row: 4; }
+  .settings-section { grid-row: 5; }
   .settings-grid   { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 600px) {
