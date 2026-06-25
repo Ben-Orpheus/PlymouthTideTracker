@@ -37,6 +37,14 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(fetchTideData, CONFIG.refreshIntervalMs);
   setInterval(fetchWeather,  CONFIG.weather.refreshIntervalMs);
   window.addEventListener('resize', () => { if (tidePoints.length) drawChart(); });
+
+  // Clear the weather grid-point cache on exit so the next session fetches fresh data.
+  // Vehicle settings (draft/margin) are intentionally kept.
+  window.addEventListener('pagehide', () => {
+    try {
+      localStorage.removeItem(`wxgrid_${CONFIG.weather.lat}_${CONFIG.weather.lon}`);
+    } catch (_) {}
+  });
 });
 
 // ── Vehicle settings ──────────────────────────────────────────────────────────
