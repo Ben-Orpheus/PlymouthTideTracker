@@ -42,21 +42,19 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('pagehide', () => {
     try {
       localStorage.removeItem(`wxgrid_${CONFIG.weather.lat}_${CONFIG.weather.lon}`);
-      localStorage.removeItem('auvSettings');
     } catch (_) {}
   });
 });
 
 // ── Vehicle settings ──────────────────────────────────────────────────────────
 function loadVehicleSettings() {
-  const saved = JSON.parse(localStorage.getItem('auvSettings') || '{}');
-  draft  = saved.draft  ?? CONFIG.defaultDraft;
-  margin = saved.margin ?? CONFIG.defaultSafetyMargin;
+  draft  = CONFIG.defaultDraft;
+  margin = CONFIG.defaultSafetyMargin;
   syncVehicleUI();
 }
 
 function saveVehicleSettings() {
-  localStorage.setItem('auvSettings', JSON.stringify({ draft, margin }));
+  // Settings are intentionally not persisted — each load starts from config defaults.
 }
 
 function syncVehicleUI() {

@@ -34,14 +34,13 @@ function tickClock() {
 
 // ── Settings (shared with daily page via localStorage) ────────────────────────
 function loadSettings() {
-  const saved = JSON.parse(localStorage.getItem('auvSettings') || '{}');
-  draft  = saved.draft  ?? CONFIG.defaultDraft;
-  margin = saved.margin ?? CONFIG.defaultSafetyMargin;
+  draft  = CONFIG.defaultDraft;
+  margin = CONFIG.defaultSafetyMargin;
   syncUI();
 }
 
 function saveSettings() {
-  localStorage.setItem('auvSettings', JSON.stringify({ draft, margin }));
+  // Settings are intentionally not persisted — each load starts from config defaults.
 }
 
 function syncUI() {
