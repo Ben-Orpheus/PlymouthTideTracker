@@ -5,7 +5,7 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let tidePoints = [];    // [{t:"YYYY-MM-DD HH:MM", v:"X.XX"}, ...] from NOAA
 let site       = null;  // active site from CONFIG
-let draft      = 37;    // vehicle draft, inches
+let draft      = 38;    // vehicle draft, inches
 let margin     = 4;     // safety margin, inches
 let wxState    = null;  // current weather (null = not yet loaded)
 /*
